@@ -1,0 +1,18 @@
+LRN:
+	alpha = 1e-3
+	beta = 0.75
+	N = K/8 + 1
+
+Pooling:
+	Stride = 2
+	Size = 3
+
+Dropout after every RCL except Layer 5
+	Probabilty not given ( :/ )
+
+
+4 RCL blocks
+
+Global Average Pooling
+
+Softmax at the end
