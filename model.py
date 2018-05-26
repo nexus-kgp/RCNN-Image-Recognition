@@ -47,20 +47,20 @@ class RCNN(nn.Module):
 		out = self.conv1(x)
 		out = self.MaxPool(out)
 		 ## RCL Block :- 1
-		out = RCLBlock(self,out,0)   
+		out = RCLBlock(self,out,0)
 		out = self.Dropout(out)
 		 ## RCL Block :- 2
-		out = RCLBlock(self,out,1)   
-		out = self.Dropout(out)
-
+		out = RCLBlock(self,out,1)
 		out = self.MaxPool(out)
+
+		out = self.Dropout(out)
+		
 		## RCL Block :- 3
-		out = RCLBlock(self,out,2)   
+		out = RCLBlock(self,out,2)
 		out = self.Dropout(out)
 		 ## RCL Block :- 4
 		out = RCLBlock(self,out,3)
-		out = self.Dropout(out)
-		
+
 		## Global Max Pooling
 		out = F.max_pool2d(out, out.size()[2:])  ## after this, out.shape == N,K,1,1
 		out = out.view(out.size()[0],out.size()[1])  ##  after this, out.shape == N,K  
