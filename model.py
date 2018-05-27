@@ -12,11 +12,11 @@ LRN_size = 5
 DRPT_prob = 0.5
 ###############
 
-c1_out_channels = K = 10  ## AKA K
+c1_out_channels = K = 5  ## AKA K
 no_of_RCL_blocks = 4
 
 class RCNN(nn.Module):
-	def __init__(self, n_classes=5):
+	def __init__(self, n_classes=2):
 		super(RCNN, self).__init__()
 		
 		self.LRN = nn.LocalResponseNorm(LRN_size,alpha=LRN_alpha)
