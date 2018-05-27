@@ -19,9 +19,17 @@ data_transform = transforms.Compose([    # the transform class to apply to each 
         Preprocess()
 ])
 
-train_tiny_dataset = datasets.ImageFolder(root='./train_image',transform=data_transform)  
-img_dataset = {'train':train_tiny_dataset}
-dataset_loader = torch.utils.data.DataLoader(train_tiny_dataset,
+train_tiny_dataset = datasets.ImageFolder(root='./train_image',transform=data_transform)
+test_tiny_dataset = datasets.ImageFolder(root='./test_image',transform=data_transform)
+
+img_dataset = {'train' : train_tiny_dataset, 'test': test_tiny_dataset}
+
+train_dataset_loader = torch.utils.data.DataLoader(img_dataset['train'],
                                              batch_size=4, shuffle=True,
                                              num_workers=4)
-tinyimage_dataloader = {'train':dataset_loader}
+
+test_dataset_loader = torch.utils.data.DataLoader(img_dataset['test'],
+                                             batch_size=4, shuffle=True,
+                                             num_workers=4)
+
+tinyimage_dataloader = {'train':train_dataset_loader, 'test' : test_dataset_loader}
