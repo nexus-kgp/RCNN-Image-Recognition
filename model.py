@@ -12,8 +12,26 @@ LRN_size = 5
 DRPT_prob = 0.5
 ###############
 
-c1_out_channels = K = 5  ## AKA K
+c1_out_channels = K = 96  ## AKA K
 no_of_RCL_blocks = 4
+
+class RCLBlock(nn.Module):
+	def __init__(self):
+		super(RCLBlock, self).__init__()
+
+		# self.LRN = nn.LocalResponseNorm(LRN_size,alpha=LRN_alpha)
+		self.feedforward_filter = nn.Conv2d(K,K,3,padding=1)
+		self.recurrent_filter = nn.Conv2d(K,K,3,padding=1)
+		self.timesteps = 6
+
+	def forward(self, input):
+		out = feedforward_output = (F.relu(self.feedforward_filter(input)))
+		for i in range(self.timesteps):
+			out = self.recurrent_filter(out)
+			out = out + feedforward_output
+			out = (F.relu(out))
+		return out
+
 
 class RCNN(nn.Module):
 	def __init__(self, n_classes=2):
@@ -22,26 +40,20 @@ class RCNN(nn.Module):
 		self.LRN = nn.LocalResponseNorm(LRN_size,alpha=LRN_alpha)
 		self.Dropout = nn.Dropout(DRPT_prob)
 		self.MaxPool = nn.MaxPool2d(3,stride=2,padding=1)
-		self.conv1 = nn.Conv2d(3,K,5)
+		self.conv1 = nn.Conv2d(1,K,5)
 		self.ReLU = nn.ReLU()
-		self.RCL_Convs = [[nn.Conv2d(K,K,3,padding=1)]*2 for i in range(no_of_RCL_blocks)]
+
+		self.RCL1 = RCLBlock()
+		self.RCL2 = RCLBlock()
+		self.RCL3 = RCLBlock()
+		self.RCL4 = RCLBlock()
+		self.RCL5 = RCLBlock()
+		self.RCL6 = RCLBlock()
+
 		self.Linear = nn.Linear(K,n_classes)
 
-	def RCLBlock(self,input,index):
-		feedforward_filter =  self.RCL_Convs[index][0]
-		recurrent_filter = self.RCL_Convs[index][1]
-		## t = 0
-		out = feedforward_output = feedforward_filter(input)
-		out = self.ReLU(out)
-		out = self.LRN(out)
-		## t = 1 to 3
-		for i in range(3):
-			out = recurrent_filter(out)
-			out = out + feedforward_output
-			out = self.ReLU(out)
-			out = self.LRN(out)
+	
 
-		return out
 
 	def forward(self, x):
 		out = self.conv1(x)
@@ -49,19 +61,28 @@ class RCNN(nn.Module):
 		out = self.MaxPool(out)
 		# return out
 		 ## RCL Block :- 1
-		out = self.RCLBlock(out,0)
+		out = self.RCL1(out)
 		out = self.Dropout(out)
 		 ## RCL Block :- 2
-		out = self.RCLBlock(out,1)
+		out = self.RCL2(out)
 		out = self.MaxPool(out)
 
 		out = self.Dropout(out)
 		
 		## RCL Block :- 3
-		out = self.RCLBlock(out,2)
+		out = self.RCL3(out)
 		out = self.Dropout(out)
 		 ## RCL Block :- 4
-		out = self.RCLBlock(out,3)
+		out = self.RCL4(out)
+
+		out = self.MaxPool(out)
+
+		out = self.Dropout(out)
+		 ## RCL Block :- 4
+		out = self.RCL5(out)
+		out = self.Dropout(out)
+		 ## RCL Block :- 4
+		out = self.RCL6(out)
 
 		## Global Max Pooling
 		out = F.max_pool2d(out, out.size()[2:])  ## after this, out.shape == N,K,1,1

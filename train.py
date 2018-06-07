@@ -2,27 +2,32 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.autograd import Variable
 
 from model import RCNN
-from dataloader import tinyimage_dataloader
+from dataloader_mnist import dataloader,batch_size,test_dataset_len,train_dataset_len
 
-net = RCNN()
+n_classes = 10
+net = RCNN(n_classes=n_classes)
 
-learning_rate = 0.001
-epoch = 100
+learning_rate = 1e-3
+epoch = 30
 
-criterion = nn.BCELoss(size_average=False)
+criterion = nn.CrossEntropyLoss()
 # optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=0.9)
 optimizer = optim.Adam(net.parameters(), lr=learning_rate)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer, 'min' ,
-    factor=0.1 ,
-    patience=10,
-    verbose=True)
+# scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+# 	optimizer, 'min' ,
+# 	factor=0.1 ,
+# 	patience=(train_dataset_len/batch_size)*3,
+# 	verbose=True)
 
 
-### Tiny Image Dataset
+
+use_gpu = torch.cuda.is_available()
+
+if use_gpu:
+	net = net.cuda()
+
 
 loss_trend = []
 accuracy_trend = []
@@ -32,53 +37,48 @@ phase = 'train'
 for i in range(epoch):
 	loss_each_epoch = []
 	running_accuracy = []
+	mini_count = 1
+	for images,labels in dataloader['train']:
+		net = net.train()
+		if use_gpu:
+			images = images.cuda()
+			labels = labels.cuda()
 
-	for images,labels in tinyimage_dataloader['train']:
-		images = Variable(images)
-		target = torch.zeros(labels.shape[0],2)
-
-		## OHE
-		for i in range(4):
-			target[i][labels[i]] = 1
-
+		optimizer.zero_grad()
+		# scheduler.optimizer.zero_grad()
 		output = net(images)
 		# print(output)
 		# print(target)
 
-		loss = criterion(output, Variable(target))
+		loss = criterion(output, labels)
 		loss.backward()
-		scheduler.step(loss)
-
-		# print(loss)
-		loss_each_epoch.append(loss.view(1).data.numpy()[0])
+		optimizer.step()
+		# scheduler.step(loss)
+		loss_to_append = loss.clone().cpu().view(1).data.numpy()[0]
+		print("Epoch : {}, Mini-Epoch : {}, Loss: {}".format(i+1,mini_count,loss_to_append))
+		mini_count += 1
+		loss_each_epoch.append(loss_to_append)
 
 	loss_trend.append(sum(loss_each_epoch))
 
-	for images,labels in tinyimage_dataloader['test']:
+	for images,labels in dataloader['test']:
+		net = net.eval()
+		if use_gpu:
+			images = images.cuda()
+			labels = labels.cuda()
 
-		images = Variable(images)
 		output = net(images)
 		predicted_labels = torch.argmax(output, dim=1)
 
-		minibatch_accuracy = torch.eq(predicted_labels,labels).sum().view(1).numpy()[0]
+		minibatch_accuracy = torch.eq(predicted_labels,labels).cpu().sum().view(1).numpy()[0]
 		running_accuracy.append(minibatch_accuracy)
 
-	accuracy_trend.append( sum(running_accuracy)/4*len(running_accuracy) )
+	accuracy_trend.append( sum(running_accuracy)/test_dataset_len )
 
 	print('##### Epoch {} #####'.format(i+1))
 	print('Loss : {}'.format(sum(loss_each_epoch)))
-	print('Accuracy : {}'.format( sum(running_accuracy)/(4*len(running_accuracy)) ))
+	print('Accuracy : {}'.format( sum(running_accuracy)/test_dataset_len ))
 	print('####################')
-
-
-## Testing
-# label = torch.ones((1,5))
-# test = torch.ones(3*64*64).view(1,3,64,64)
-# out = net(test)
-# loss = criterion(out,label)
-# print(loss)
-# loss.backward()
-# scheduler.step(loss)
 
 
 print(net)
